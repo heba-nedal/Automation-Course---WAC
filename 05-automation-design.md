@@ -10,6 +10,7 @@ Google Forms
 → Google Sheets  
 → AI by Zapier  
 → Validate Information  
+→ Determine Missing Information  
 → Decision & Routing  
 → Update Google Sheets  
 → Send Email Notification
@@ -27,28 +28,57 @@ Google Forms
 
 يجب ألا يؤدي تحديث التسجيل إلى إنشاء سجل جديد للتسجيل نفسه.
 
-## 4. Step 2 — Extract Information
+## 4. Step 2 — Summarize Learning Goals
 
 **Tool:** AI by Zapier
 
-يستقبل AI بيانات التسجيل ووصف أهداف التعلم، إن توفر، ثم يستخرج المعلومات المطلوبة:
+يستقبل AI وصف أهداف التعلم `learning_goals`، إن توفر، ثم ينتج:
 
 - `learning_goals_summary`
-- `missing_information`
 
 يجب أن يعتمد AI على المعلومات التي قدمها المشارك، وألا يخترع أهدافًا أو تفاصيل غير موجودة.
 
 إذا لم يقدم المشارك وصف أهداف التعلم، فيُترك الملخص فارغًا أو تُستخدم قيمة واضحة مثل `Not provided`.
 
+لا يتولى AI تحديد `missing_information` أو `validation_status` أو `requires_human` أو `routing`.
+
 غياب وصف أهداف التعلم وحده لا يجعل التسجيل غير صالح؛ لأنه حقل اختياري.
 
-## 5. Step 3 — Validate & Route
+## 5. Step 3 — Validate Information
 
-تُطبّق قواعد التحقق المحددة في:
+**Tool:** Zapier Logic / Validation Rules
 
-`04-decision-and-exception-design.md`
+يتحقق النظام من الحقول المطلوبة:
 
-يعتمد النظام على التحقق من الحقول المطلوبة وصلاحيتها وفق القواعد المحددة، ولا يعتمد على مخرجات AI وحدها لتحديد صلاحية التسجيل.
+- `participant_name`
+- `email`
+- `workshop_name`
+
+تشمل عملية التحقق التأكد من وجود القيم المطلوبة، والتحقق من صيغة البريد الإلكتروني وفق آلية التحقق المتاحة في التنفيذ.
+
+لا يُستخدم AI للتحقق من وجود هذه الحقول أو لاتخاذ القرار النهائي بشأن صلاحية التسجيل.
+
+## 6. Step 4 — Determine Missing Information
+
+**Tool:** Zapier Logic
+
+بعد التحقق من البيانات، يحدد النظام قيمة `missing_information` بناءً على الحقول المطلوبة التي لم تستوفِ شروط التحقق.
+
+مثال عند غياب البريد الإلكتروني:
+
+`missing_information = email`
+
+إذا كانت جميع الحقول المطلوبة موجودة:
+
+`missing_information = NONE`
+
+لا يُضاف `learning_goals` إلى `missing_information`؛ لأنه حقل اختياري.
+
+إذا كانت المعلومات موجودة ولكنها غير واضحة بما يكفي لمتابعة التسجيل، يُسجل سبب المراجعة في `review_reason`، وتُطبق قواعد القرار المناسبة.
+
+## 7. Step 5 — Decision & Routing
+
+تُطبّق قواعد التحقق والتوجيه المحددة في `04-decision-and-exception-design.md`.
 
 يوجد مساران:
 
@@ -58,6 +88,7 @@ Google Forms
 
 النتيجة:
 
+- `missing_information = NONE`
 - `validation_status = VALID`
 - `requires_human = false`
 - `routing = normal`
@@ -74,22 +105,23 @@ Google Forms
 
 يجب أن تتطابق شروط المسارين، بحيث لا يُوجّه التسجيل نفسه إلى المسارين معًا.
 
-## 6. Step 4 — Update the Record
+## 8. Step 6 — Update the Record
 
 **Tool:** Google Sheets
 
 بعد تحديد المسار:
 
 1. يحدد النظام سجل التسجيل الأصلي باستخدام `registration_id`.
-2. يُحدّث السجل نفسه بنتائج استخراج المعلومات.
-3. تُحفظ قيمة `validation_status`.
-4. تُحفظ قيمة `requires_human`.
-5. تُحفظ قيمة `routing`.
-6. يُسجل `review_reason` عند الحاجة إلى المراجعة.
+2. يُحدّث السجل نفسه بنتائج تلخيص أهداف التعلم والتحقق.
+3. تُحفظ قيمة `missing_information`.
+4. تُحفظ قيمة `validation_status`.
+5. تُحفظ قيمة `requires_human`.
+6. تُحفظ قيمة `routing`.
+7. يُسجل `review_reason` عند الحاجة إلى المراجعة.
 
 يجب ألا يؤدي التحديث إلى إنشاء سجل مكرر للتسجيل نفسه.
 
-## 7. Step 5 — Send Notification
+## 9. Step 7 — Send Notification
 
 **Tool:** Email by Zapier
 
@@ -105,29 +137,29 @@ Google Forms
 
 لا يُرسل تأكيد القبول للمشارك؛ لأن النظام لا يتخذ قرار قبول المشاركين في الورشة.
 
-## 8. Technical Failures
+## 10. Technical Failures
 
-إذا فشلت خطوة تقنية، مثل استخراج المعلومات أو تحديث Google Sheets أو إرسال الإشعار، فلا ينبغي تسجيل هذا الفشل تلقائيًا على أنه `NEEDS_REVIEW`.
+إذا فشلت خطوة تقنية، مثل معالجة AI أو تحديث Google Sheets أو إرسال الإشعار، فلا ينبغي تسجيل هذا الفشل تلقائيًا على أنه `NEEDS_REVIEW`.
 
 يجب التمييز بين:
 
-- **Business Exception:** التسجيل يحتاج إلى مراجعة بسبب معلومات ناقصة أو غير واضحة.
+- **Business Exception:** التسجيل يحتاج إلى مراجعة بسبب معلومات مطلوبة ناقصة أو غير واضحة.
 - **Technical Error:** إحدى خطوات الأتمتة لم تُنفذ بنجاح.
 
 عند حدوث فشل تقني، تتم مراجعة سجل التنفيذ في Zapier لتحديد الخطوة التي فشلت ومعالجة المشكلة.
 
-## 9. Testing Requirements
+## 11. Testing Requirements
 
 يجب اختبار الأتمتة باستخدام الحالات التالية:
 
 | Test Case | Expected Result |
 |---|---|
-| تسجيل مكتمل وواضح | `VALID` وتوجيه إلى `normal`. |
-| البريد الإلكتروني مفقود | `NEEDS_REVIEW` وتوجيه إلى `human_review`. |
-| معلومات مطلوبة غير واضحة | `NEEDS_REVIEW` وتوجيه إلى `human_review`. |
-| أهداف التعلم غير موجودة | لا يُرفض التسجيل لهذا السبب وحده. |
+| تسجيل مكتمل وواضح | `VALID` وتوجيه إلى `normal`، مع `missing_information = NONE`. |
+| البريد الإلكتروني مفقود | `NEEDS_REVIEW` وتوجيه إلى `human_review`، مع تحديد `email` في `missing_information`. |
+| معلومات مطلوبة غير واضحة | `NEEDS_REVIEW` وتوجيه إلى `human_review`، مع تسجيل سبب المراجعة. |
+| أهداف التعلم غير موجودة | لا يُحال التسجيل إلى المراجعة لهذا السبب وحده. |
 | فشل تقني في إحدى الخطوات | يُعامل كخطأ تقني، وليس كقرار تحقق من التسجيل. |
 
 ## Expected Outcome
 
-تصميم تدفق أتمتة واضح باستخدام Zapier، يحدد خطوات استقبال التسجيل ومعالجته والتحقق منه وتوجيهه وتحديث سجله وإرسال الإشعار المناسب، قبل البدء في التنفيذ العملي.
+تصميم تدفق أتمتة واضح باستخدام Zapier، يفصل بين تلخيص أهداف التعلم باستخدام AI والتحقق من البيانات باستخدام قواعد محددة، ثم يحدد المعلومات الناقصة ومسار التسجيل ويحدّث السجل ويرسل الإشعار المناسب قبل البدء في التنفيذ العملي.
