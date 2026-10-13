@@ -99,8 +99,8 @@ Relationships:
 
 ## 10. Live Demo
 
-- **Live Portfolio:** [Add deployed URL]
-- **GitHub Repository:** [Add repository URL]
+- **Live Portfolio:** [https://heba-n-ismail-portfolio.lovable.app]
+- **GitHub Repository:** [https://github.com/heba-nedal/heba-n-ismail-portfolio.git]
 
 ## 11. Testing and Iteration
 
